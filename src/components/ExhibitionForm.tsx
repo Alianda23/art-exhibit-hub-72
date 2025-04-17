@@ -1,323 +1,256 @@
 
-import React, { useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { ExhibitionData } from "@/services/api";
-import { ImageUp } from "lucide-react";
+import React, { useState } from 'react';
+import { Button } from './ui/button';
+import FileUpload from './FileUpload';
+import { toast } from './ui/use-toast';
 
-const MAX_FILE_SIZE = 5000000; // 5MB
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+type Exhibition = {
+  id?: string;
+  title: string;
+  description: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  ticketPrice: number;
+  imageUrl?: string;
+  totalSlots: number;
+  availableSlots?: number;
+  status: 'upcoming' | 'ongoing' | 'past';
+};
 
-const exhibitionSchema = z.object({
-  title: z.string().min(3, { message: "Title must be at least 3 characters" }),
-  description: z.string().min(10, { message: "Description must be at least 10 characters" }),
-  location: z.string().min(3, { message: "Location must be at least 3 characters" }),
-  startDate: z.string().min(1, { message: "Start date is required" }),
-  endDate: z.string().min(1, { message: "End date is required" }),
-  ticketPrice: z.coerce.number().min(0, { message: "Ticket price must be a positive number" }),
-  totalSlots: z.coerce.number().int().min(1, { message: "Total slots must be at least 1" }),
-  availableSlots: z.coerce.number().int().min(0, { message: "Available slots must be a non-negative number" }),
-  status: z.enum(["upcoming", "ongoing", "past"], { message: "Status must be upcoming, ongoing, or past" }),
-});
-
-type ExhibitionFormValues = z.infer<typeof exhibitionSchema>;
-
-interface ExhibitionFormProps {
-  initialData?: ExhibitionData;
-  onSubmit: (data: ExhibitionData) => void;
-  onCancel: () => void;
-}
+type ExhibitionFormProps = {
+  initialData?: Exhibition;
+  onSubmit: (data: FormData) => Promise<void>;
+  isLoading: boolean;
+};
 
 const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
   initialData,
   onSubmit,
-  onCancel,
+  isLoading,
 }) => {
-  const { toast } = useToast();
-  const [previewImage, setPreviewImage] = useState<string | null>(initialData?.imageUrl || null);
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [location, setLocation] = useState(initialData?.location || '');
+  const [startDate, setStartDate] = useState(initialData?.startDate?.split('T')[0] || '');
+  const [endDate, setEndDate] = useState(initialData?.endDate?.split('T')[0] || '');
+  const [ticketPrice, setTicketPrice] = useState(initialData?.ticketPrice?.toString() || '');
+  const [totalSlots, setTotalSlots] = useState(initialData?.totalSlots?.toString() || '');
+  const [status, setStatus] = useState(initialData?.status || 'upcoming');
   const [imageFile, setImageFile] = useState<File | null>(null);
   
-  const defaultValues = initialData || {
-    title: "",
-    description: "",
-    location: "",
-    startDate: new Date().toISOString().split("T")[0],
-    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    ticketPrice: 0,
-    totalSlots: 100,
-    availableSlots: 100,
-    status: "upcoming" as const,
-  };
-
-  const form = useForm<ExhibitionFormValues>({
-    resolver: zodResolver(exhibitionSchema),
-    defaultValues,
-  });
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    if (!files || files.length === 0) return;
-    
-    const file = files[0];
-    
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
+    if (!title || !description || !location || !startDate || !endDate || !ticketPrice || !totalSlots) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Image size should be less than 5MB",
+        title: "Validation Error",
+        description: "Please fill in all required fields",
       });
       return;
     }
     
-    // Validate file type
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Image format should be JPG, PNG or WebP",
-      });
-      return;
-    }
-    
-    setImageFile(file);
-    
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPreviewImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSubmit = async (values: ExhibitionFormValues) => {
     try {
-      // If no image was uploaded or changed, use the existing image
-      let imageUrl = initialData?.imageUrl || "";
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('description', description);
+      formData.append('location', location);
+      formData.append('startDate', startDate);
+      formData.append('endDate', endDate);
+      formData.append('ticketPrice', ticketPrice);
+      formData.append('totalSlots', totalSlots);
+      formData.append('status', status);
       
+      // Append availableSlots only for new exhibitions
+      if (!initialData) {
+        formData.append('availableSlots', totalSlots);
+      } else if (initialData.availableSlots !== undefined) {
+        formData.append('availableSlots', initialData.availableSlots.toString());
+      }
+      
+      // Only append image if it exists and has changed
       if (imageFile) {
-        // Use the local preview data URL as the imageUrl
-        imageUrl = previewImage || "";
+        formData.append('image', imageFile);
+      } else if (initialData?.imageUrl) {
+        formData.append('imageUrl', initialData.imageUrl);
       }
       
-      if (!imageUrl && !imageFile) {
-        toast({
-          variant: "destructive",
-          title: "Image Required",
-          description: "Please upload an image for the exhibition",
-        });
-        return;
-      }
+      await onSubmit(formData);
       
-      // Include the image URL in the submission data
-      onSubmit({
-        ...values,
-        imageUrl,
-        ticketPrice: values.ticketPrice // Price in KSh
-      } as ExhibitionData);
+      // Form will be reset by the parent component if successful
     } catch (error) {
+      console.error('Exhibition form submission error:', error);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to submit exhibition. Please try again.",
+        title: "Submission Error",
+        description: "Failed to save exhibition. Please try again."
       });
-      console.error("Submit error:", error);
     }
   };
-
+  
+  const handleFileChange = (file: File | null) => {
+    setImageFile(file);
+  };
+  
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Exhibition title" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Exhibition description" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="location"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Location</FormLabel>
-              <FormControl>
-                <Input placeholder="Exhibition location" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="space-y-2">
-          <FormLabel>Exhibition Image</FormLabel>
-          <div className="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg">
-            {previewImage && (
-              <div className="mb-4 w-full max-w-xs">
-                <img 
-                  src={previewImage} 
-                  alt="Exhibition preview" 
-                  className="w-full h-auto rounded-lg"
-                />
-              </div>
-            )}
-            
-            <label className="w-full flex flex-col items-center px-4 py-6 bg-white rounded-lg cursor-pointer hover:bg-gray-50">
-              <ImageUp className="w-8 h-8 text-gray-500" />
-              <span className="mt-2 text-base text-gray-500">
-                {previewImage ? "Change image" : "Upload image"}
-              </span>
-              <input type="file" className="hidden" onChange={handleImageChange} accept="image/*" />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+              Title*
             </label>
-            
-            {previewImage && (
-              <p className="text-sm text-gray-500 mt-2">
-                Click above to change the image
-              </p>
-            )}
+            <input
+              id="title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+              Description*
+            </label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+              Location*
+            </label>
+            <input
+              id="location"
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+              required
+            />
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="startDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Start Date</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
+                Start Date*
+              </label>
+              <input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
+                End Date*
+              </label>
+              <input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+                required
+              />
+            </div>
+          </div>
           
-          <FormField
-            control={form.control}
-            name="endDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>End Date</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormField
-            control={form.control}
-            name="ticketPrice"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Ticket Price (KSh)</FormLabel>
-                <FormControl>
-                  <Input type="number" min="0" step="0.01" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="ticketPrice" className="block text-sm font-medium text-gray-700">
+                Ticket Price (KSh)*
+              </label>
+              <input
+                id="ticketPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                value={ticketPrice}
+                onChange={(e) => setTicketPrice(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="totalSlots" className="block text-sm font-medium text-gray-700">
+                Total Slots*
+              </label>
+              <input
+                id="totalSlots"
+                type="number"
+                min="1"
+                value={totalSlots}
+                onChange={(e) => setTotalSlots(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+                required
+              />
+            </div>
+          </div>
           
-          <FormField
-            control={form.control}
-            name="totalSlots"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Total Slots</FormLabel>
-                <FormControl>
-                  <Input type="number" min="1" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="availableSlots"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Available Slots</FormLabel>
-                <FormControl>
-                  <Input type="number" min="0" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+              Status*
+            </label>
+            <select
+              id="status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as any)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+              required
+            >
+              <option value="upcoming">Upcoming</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="past">Past</option>
+            </select>
+          </div>
         </div>
+      </div>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Exhibition Image{initialData ? '' : '*'}
+        </label>
+        <FileUpload onFileChange={handleFileChange} />
         
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <FormControl>
-                <select 
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                  {...field}
-                >
-                  <option value="upcoming">Upcoming</option>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="past">Past</option>
-                </select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit">
-            {initialData ? "Update Exhibition" : "Create Exhibition"}
-          </Button>
-        </div>
-      </form>
-    </Form>
+        {initialData?.imageUrl && !imageFile && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-500 mb-2">Current Image:</p>
+            <img 
+              src={initialData.imageUrl} 
+              alt={initialData.title} 
+              className="max-h-48 object-contain border rounded-md" 
+            />
+          </div>
+        )}
+      </div>
+      
+      <div className="flex justify-end space-x-4">
+        <Button type="button" variant="outline" onClick={() => window.history.back()}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Saving...' : initialData ? 'Update Exhibition' : 'Create Exhibition'}
+        </Button>
+      </div>
+    </form>
   );
 };
 
