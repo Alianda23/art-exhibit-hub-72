@@ -10,7 +10,6 @@ import ArtworkCard from '@/components/ArtworkCard';
 import { Artwork } from '@/types';
 import { getArtwork, getAllArtworks } from '@/services/api';
 import { Ban } from 'lucide-react';
-import { getValidImageUrl, handleImageError } from '@/utils/imageUtils';
 
 const ArtworkDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,7 +19,6 @@ const ArtworkDetail = () => {
   const [artwork, setArtwork] = useState<Artwork | null>(null);
   const [relatedArtworks, setRelatedArtworks] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
-  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
     const fetchArtwork = async () => {
@@ -89,7 +87,6 @@ const ArtworkDetail = () => {
   }
 
   const isSold = artwork.status === 'sold';
-  const imageUrl = getValidImageUrl(artwork.imageUrl);
 
   return (
     <div className="py-12 px-4 md:px-6 bg-secondary min-h-screen">
@@ -99,24 +96,10 @@ const ArtworkDetail = () => {
             <div className="p-6 lg:p-8">
               <div className="relative">
                 <AspectRatio ratio={3/4} className="overflow-hidden rounded-lg">
-                  {!imageLoaded && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                      <div className="w-full h-full bg-gray-200 animate-pulse" />
-                    </div>
-                  )}
                   <img 
-                    src={imageUrl} 
+                    src={artwork.imageUrl} 
                     alt={artwork.title}
-                    className={`w-full h-full object-cover ${imageLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
-                    onLoad={() => {
-                      console.log(`Detail image loaded successfully: ${imageUrl}`);
-                      setImageLoaded(true);
-                    }}
-                    onError={(e) => {
-                      console.log(`Detail image error for: ${imageUrl}`);
-                      setImageLoaded(true);
-                      handleImageError(e, artwork.imageUrl);
-                    }}
+                    className="w-full h-full object-cover"
                   />
                 </AspectRatio>
                 {isSold && (

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllArtworks, createArtwork, updateArtwork, deleteArtwork, ArtworkData } from '@/services/api';
@@ -26,7 +27,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getValidImageUrl, handleImageError } from '@/utils/imageUtils';
 
 const AdminArtworks = () => {
   const { toast } = useToast();
@@ -36,11 +36,13 @@ const AdminArtworks = () => {
   const [selectedArtwork, setSelectedArtwork] = useState<ArtworkData | null>(null);
   const [artworkToDelete, setArtworkToDelete] = useState<ArtworkData | null>(null);
   
+  // Fetch all artworks
   const { data, isLoading, error } = useQuery({
     queryKey: ['artworks'],
     queryFn: getAllArtworks,
   });
 
+  // Create artwork mutation
   const createArtworkMutation = useMutation({
     mutationFn: createArtwork,
     onSuccess: () => {
@@ -62,6 +64,7 @@ const AdminArtworks = () => {
     }
   });
 
+  // Update artwork mutation
   const updateArtworkMutation = useMutation({
     mutationFn: ({ id, data }: { id: string, data: ArtworkData }) => 
       updateArtwork(id, data),
@@ -84,6 +87,7 @@ const AdminArtworks = () => {
     }
   });
 
+  // Delete artwork mutation
   const deleteArtworkMutation = useMutation({
     mutationFn: (id: string) => deleteArtwork(id),
     onSuccess: () => {
@@ -105,20 +109,13 @@ const AdminArtworks = () => {
       setIsAlertDialogOpen(false);
     }
   });
-
+  
   const handleAddArtwork = () => {
     setSelectedArtwork(null);
     setIsDialogOpen(true);
   };
   
   const handleEditArtwork = (artwork: ArtworkData) => {
-    if (artwork.imageUrl && artwork.imageUrl.startsWith('data:')) {
-      console.log("Converting base64 image URL to placeholder for editing");
-      artwork = {
-        ...artwork,
-        imageUrl: '/placeholder.svg'
-      };
-    }
     setSelectedArtwork(artwork);
     setIsDialogOpen(true);
   };
@@ -136,13 +133,6 @@ const AdminArtworks = () => {
 
   const handleFormSubmit = (formData: ArtworkData) => {
     console.log("Submitting artwork form data:", formData);
-    
-    if (formData.imageUrl && formData.imageUrl.startsWith('data:')) {
-      console.log("Warning: Detected base64 image URL. Converting to a proper URL.");
-      const timestamp = new Date().getTime();
-      formData.imageUrl = `/static/uploads/${timestamp}_artwork.jpg`;
-    }
-    
     if (selectedArtwork?.id) {
       updateArtworkMutation.mutate({ 
         id: selectedArtwork.id, 
@@ -158,6 +148,15 @@ const AdminArtworks = () => {
       style: 'currency',
       currency: 'USD',
     }).format(price);
+  };
+
+  // Function to fix image URL issues
+  const getValidImageUrl = (url: string) => {
+    // Fix common URL issues
+    if (url.includes(';//')) {
+      return url.replace(';//', '://');
+    }
+    return url;
   };
 
   if (isLoading) {
@@ -220,7 +219,7 @@ const AdminArtworks = () => {
                         className="w-16 h-16 object-cover rounded"
                         onError={(e) => {
                           console.error("Image failed to load:", artwork.imageUrl);
-                          handleImageError(e, artwork.imageUrl);
+                          (e.target as HTMLImageElement).src = '/placeholder.svg';
                         }}
                       />
                     </TableCell>
@@ -259,6 +258,7 @@ const AdminArtworks = () => {
         </div>
       </Card>
 
+      {/* Artwork Form Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -274,6 +274,7 @@ const AdminArtworks = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

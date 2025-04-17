@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -46,15 +46,10 @@ const ArtworkForm: React.FC<ArtworkFormProps> = ({
   onCancel,
 }) => {
   const { toast } = useToast();
-  
-  // Use state to track the image URL and preview image
-  const [imageUrl, setImageUrl] = useState<string>(initialData?.imageUrl || "");
   const [previewImage, setPreviewImage] = useState<string | null>(
-    initialData?.imageUrl ? initialData.imageUrl : null
+    initialData?.imageUrl && initialData.imageUrl.startsWith("http") ? initialData.imageUrl : null
   );
-  const [fileName, setFileName] = useState<string>("");
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [isImageLoaded, setIsImageLoaded] = useState<boolean>(!!initialData?.imageUrl);
   
   const defaultValues = initialData || {
     title: "",
@@ -72,30 +67,12 @@ const ArtworkForm: React.FC<ArtworkFormProps> = ({
     defaultValues,
   });
 
-  // Effect to check if the initial image URL is valid
-  useEffect(() => {
-    if (initialData?.imageUrl) {
-      const img = new Image();
-      img.onload = () => {
-        setIsImageLoaded(true);
-        console.log("Image loaded successfully:", initialData.imageUrl);
-      };
-      img.onerror = () => {
-        console.error("Failed to load image:", initialData.imageUrl);
-        setIsImageLoaded(false);
-        setPreviewImage("/placeholder.svg");
-      };
-      img.src = initialData.imageUrl;
-    }
-  }, [initialData?.imageUrl]);
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     
     if (!files || files.length === 0) return;
     
     const file = files[0];
-    setImageFile(file);
     
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
@@ -117,35 +94,27 @@ const ArtworkForm: React.FC<ArtworkFormProps> = ({
       return;
     }
     
-    // Generate current date-time string for unique filename
-    const now = new Date();
-    const dateTime = now.getFullYear() +
-                    String(now.getMonth() + 1).padStart(2, '0') +
-                    String(now.getDate()).padStart(2, '0') +
-                    String(now.getHours()).padStart(2, '0') +
-                    String(now.getMinutes()).padStart(2, '0') +
-                    String(now.getSeconds()).padStart(2, '0');
+    setImageFile(file);
     
-    // Create a filename with datetime prefix
-    const generatedFileName = `${dateTime}_${file.name.replace(/\s+/g, '-')}`;
-    setFileName(generatedFileName);
-    
-    // Create a FileReader to generate a preview
+    // Create preview
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string;
-      setPreviewImage(result);
-      setImageUrl(result); // Store the base64 image temporarily
-      setIsImageLoaded(true);
+      setPreviewImage(reader.result as string);
     };
     reader.readAsDataURL(file);
-    
-    console.log("Image prepared for upload with filename:", generatedFileName);
   };
 
   const handleSubmit = async (values: ArtworkFormValues) => {
     try {
-      if (!imageUrl && !previewImage) {
+      // If no image was uploaded or changed, use the existing image
+      let imageUrl = initialData?.imageUrl || "";
+      
+      if (imageFile) {
+        // Use the local preview data URL as the imageUrl
+        imageUrl = previewImage || "";
+      }
+      
+      if (!imageUrl && !imageFile) {
         toast({
           variant: "destructive",
           title: "Image Required",
@@ -154,26 +123,12 @@ const ArtworkForm: React.FC<ArtworkFormProps> = ({
         return;
       }
       
-      // Use the stored image URL (base64 data or existing URL)
-      let submissionImageUrl = imageUrl;
-      
-      // If we have an initial image URL that's already a server path and no new image was uploaded
-      if (initialData?.imageUrl && !imageFile && 
-          (initialData.imageUrl.startsWith('/static/') || 
-           initialData.imageUrl.startsWith('http'))) {
-        submissionImageUrl = initialData.imageUrl;
-        console.log("Using existing server image path:", submissionImageUrl);
-      }
-      
-      console.log("Submitting artwork with image URL type:", typeof submissionImageUrl);
-      
-      const submissionData = {
+      // Include the image URL in the submission data
+      onSubmit({
         ...values,
-        imageUrl: submissionImageUrl,
-        price: values.price
-      } as ArtworkData;
-      
-      onSubmit(submissionData);
+        imageUrl,
+        price: values.price // Price in KSh
+      } as ArtworkData);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -256,9 +211,7 @@ const ArtworkForm: React.FC<ArtworkFormProps> = ({
             
             {previewImage && (
               <p className="text-sm text-gray-500 mt-2">
-                {isImageLoaded ? 
-                  "Click above to change the image" : 
-                  "Current image may not be displaying correctly. Please upload a new one."}
+                Click above to change the image
               </p>
             )}
           </div>

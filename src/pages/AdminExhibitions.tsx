@@ -117,15 +117,6 @@ const AdminExhibitions = () => {
   };
   
   const handleEditExhibition = (exhibition: ExhibitionData) => {
-    // Make sure we're not passing base64 data to the form
-    if (exhibition.imageUrl && exhibition.imageUrl.startsWith('data:')) {
-      // Replace with a placeholder URL instead of the base64 data
-      console.log("Converting base64 image URL to placeholder for editing");
-      exhibition = {
-        ...exhibition,
-        imageUrl: '/placeholder.svg'
-      };
-    }
     setSelectedExhibition(exhibition);
     setIsDialogOpen(true);
   };
@@ -143,15 +134,6 @@ const AdminExhibitions = () => {
 
   const handleFormSubmit = (formData: ExhibitionData) => {
     console.log("Submitting exhibition form data:", formData);
-    
-    // Check if the image is a base64 string and handle it
-    if (formData.imageUrl && formData.imageUrl.startsWith('data:')) {
-      console.log("Warning: Detected base64 image URL. Converting to a proper URL.");
-      // Generate a fake URL instead of using the base64 data
-      const timestamp = new Date().getTime();
-      formData.imageUrl = `/static/uploads/${timestamp}_exhibition.jpg`;
-    }
-    
     if (selectedExhibition?.id) {
       updateExhibitionMutation.mutate({ 
         id: selectedExhibition.id, 
@@ -174,29 +156,17 @@ const AdminExhibitions = () => {
   const getValidImageUrl = (url: string) => {
     if (!url) return '/placeholder.svg';
     
-    // Check if the URL is a base64 string
-    if (url.startsWith('data:')) {
-      console.log("Detected base64 image URL in table display. Using placeholder instead.");
-      return '/placeholder.svg';
-    }
-    
-    // If it's a relative URL using server pattern, return as is
-    if (url.startsWith('/static/')) {
-      // This is a server path that should work if server is properly configured
-      return url;
-    }
-    
     // Fix common URL issues
     if (url.includes(';//')) {
       return url.replace(';//', '://');
     }
     
-    // If it's an absolute URL and not too long, return as is
-    if (url.startsWith('http') && url.length < 500) {
-      return url;
+    // Check if URL is too long (likely invalid)
+    if (url.length > 500) {
+      return '/placeholder.svg';
     }
     
-    return '/placeholder.svg';
+    return url;
   };
 
   const getStatusColor = (status: string) => {
