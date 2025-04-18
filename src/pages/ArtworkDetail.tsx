@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,20 @@ const ArtworkDetail = () => {
   const [relatedArtworks, setRelatedArtworks] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const getValidImageUrl = (url: string) => {
+    if (!url) return '/placeholder.svg';
+    
+    if (url.includes(';')) {
+      url = url.replace(';', ':');
+    }
+    
+    if (url.startsWith('/')) {
+      return `http://localhost:8000${url}`;
+    }
+    
+    return url;
+  };
+
   useEffect(() => {
     const fetchArtwork = async () => {
       if (!id) return;
@@ -29,7 +42,6 @@ const ArtworkDetail = () => {
         const data = await getArtwork(id);
         setArtwork(data);
         
-        // Fetch all artworks to get related ones by the same artist
         const allArtworks = await getAllArtworks();
         const related = allArtworks
           .filter((a: Artwork) => a.id !== id && a.artist === data.artist)
@@ -97,9 +109,13 @@ const ArtworkDetail = () => {
               <div className="relative">
                 <AspectRatio ratio={3/4} className="overflow-hidden rounded-lg">
                   <img 
-                    src={artwork.imageUrl} 
+                    src={getValidImageUrl(artwork.imageUrl)}
                     alt={artwork.title}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error("Image failed to load:", artwork.imageUrl);
+                      (e.target as HTMLImageElement).src = '/placeholder.svg';
+                    }}
                   />
                 </AspectRatio>
                 {isSold && (

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllArtworks, createArtwork, updateArtwork, deleteArtwork, ArtworkData } from '@/services/api';
@@ -27,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { getValidImageUrl, handleImageError } from '@/utils/imageUtils';
 
 const AdminArtworks = () => {
   const { toast } = useToast();
@@ -150,15 +150,6 @@ const AdminArtworks = () => {
     }).format(price);
   };
 
-  // Function to fix image URL issues
-  const getValidImageUrl = (url: string) => {
-    // Fix common URL issues
-    if (url.includes(';//')) {
-      return url.replace(';//', '://');
-    }
-    return url;
-  };
-
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 px-4">
@@ -217,10 +208,7 @@ const AdminArtworks = () => {
                         src={getValidImageUrl(artwork.imageUrl)} 
                         alt={artwork.title} 
                         className="w-16 h-16 object-cover rounded"
-                        onError={(e) => {
-                          console.error("Image failed to load:", artwork.imageUrl);
-                          (e.target as HTMLImageElement).src = '/placeholder.svg';
-                        }}
+                        onError={handleImageError(artwork.imageUrl)}
                       />
                     </TableCell>
                     <TableCell className="font-medium">{artwork.title}</TableCell>

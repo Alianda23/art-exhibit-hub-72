@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import ArtworkCard from '@/components/ArtworkCard';
 import { Input } from '@/components/ui/input';
@@ -26,6 +25,7 @@ const ArtworksPage = () => {
       try {
         setLoading(true);
         const data = await getAllArtworks();
+        console.log('Fetched artworks:', data);
         setArtworks(data);
       } catch (error) {
         console.error('Failed to fetch artworks:', error);

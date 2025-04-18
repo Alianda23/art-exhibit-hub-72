@@ -12,14 +12,35 @@ interface ArtworkCardProps {
 }
 
 const ArtworkCard = ({ artwork }: ArtworkCardProps) => {
+  // Fix URL format issues
+  const getValidImageUrl = (url: string) => {
+    if (!url) return '/placeholder.svg';
+    
+    // Fix the semicolon issue in URLs
+    if (url.includes(';')) {
+      url = url.replace(';', ':');
+    }
+    
+    // Handle relative URLs (starting with /)
+    if (url.startsWith('/')) {
+      return `http://localhost:8000${url}`;
+    }
+    
+    return url;
+  };
+
   return (
     <div className="group rounded-lg overflow-hidden bg-white shadow-md hover:shadow-lg transition-all duration-300">
       <div className="image-container relative">
         <AspectRatio ratio={3/4}>
           <img
-            src={artwork.imageUrl}
+            src={getValidImageUrl(artwork.imageUrl)}
             alt={artwork.title}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              console.error("Image failed to load:", artwork.imageUrl);
+              (e.target as HTMLImageElement).src = '/placeholder.svg';
+            }}
           />
         </AspectRatio>
         {artwork.status === 'sold' && (
