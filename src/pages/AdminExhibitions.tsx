@@ -70,7 +70,7 @@ const AdminExhibitions: React.FC = () => {
       
       if (response.ok) {
         toast({
-          variant: 'success',
+          variant: 'success', // Now using the success variant
           title: 'Success',
           description: 'Exhibition deleted successfully',
         });
@@ -123,7 +123,7 @@ const AdminExhibitions: React.FC = () => {
       }
       
       toast({
-        variant: 'success',
+        variant: 'success', // Now using the success variant
         title: 'Success',
         description: `Exhibition ${selectedExhibition ? 'updated' : 'created'} successfully`,
       });
