@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Exhibition } from '@/types';
 import { getExhibition, getAllExhibitions } from '@/services/api';
+import { getValidImageUrl, handleImageError } from '@/utils/imageUtils';
 
 const ExhibitionDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -111,9 +112,10 @@ const ExhibitionDetail = () => {
               <div className="relative">
                 <AspectRatio ratio={16/9} className="overflow-hidden rounded-lg">
                   <img 
-                    src={exhibition.imageUrl} 
-                    alt={exhibition.title}
+                    src={getValidImageUrl(exhibition?.imageUrl || '')} 
+                    alt={exhibition?.title}
                     className="w-full h-full object-cover"
+                    onError={handleImageError(exhibition?.imageUrl || '')}
                   />
                 </AspectRatio>
                 {isSoldOut && (
@@ -197,7 +199,7 @@ const ExhibitionDetail = () => {
             <h2 className="text-2xl font-serif font-bold mb-8">
               Other Exhibitions You Might Like
             </h2>
-            <div className="exhibition-grid">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {relatedExhibitions.map((relatedExhibition) => (
                 <ExhibitionCard key={relatedExhibition.id} exhibition={relatedExhibition} />
               ))}

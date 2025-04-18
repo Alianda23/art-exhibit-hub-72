@@ -6,6 +6,7 @@ import { formatPrice, formatDateRange } from '@/utils/formatters';
 import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { MapPin, Calendar, Ban } from 'lucide-react';
+import { getValidImageUrl, handleImageError } from '@/utils/imageUtils';
 
 interface ExhibitionCardProps {
   exhibition: Exhibition;
@@ -19,9 +20,10 @@ const ExhibitionCard = ({ exhibition }: ExhibitionCardProps) => {
       <div className="image-container relative">
         <AspectRatio ratio={16/9}>
           <img
-            src={exhibition.imageUrl}
+            src={getValidImageUrl(exhibition.imageUrl)}
             alt={exhibition.title}
             className="w-full h-full object-cover"
+            onError={handleImageError(exhibition.imageUrl)}
           />
         </AspectRatio>
         {isSoldOut && (

@@ -1,4 +1,3 @@
-
 /**
  * Fixes common issues with image URLs and provides fallback handling
  * @param url The original image URL
@@ -13,9 +12,24 @@ export const getValidImageUrl = (url: string, fallbackUrl: string = '/placeholde
     url = url.replace(';', ':');
   }
   
-  // Handle relative URLs (starting with /)
+  // Handle localhost URLs that start with /static
+  if (url.startsWith('/static/')) {
+    return `http://localhost:8000${url}`;
+  }
+  
+  // Handle other relative URLs (starting with /)
   if (url.startsWith('/')) {
     return `http://localhost:8000${url}`;
+  }
+  
+  // Handle base64 data URLs (keep as is)
+  if (url.startsWith('data:')) {
+    return url;
+  }
+  
+  // Ensure URLs have proper protocol
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return `http://${url}`;
   }
   
   return url;
